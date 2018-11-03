@@ -1,0 +1,3 @@
+<program> ::= "print" "(" <expression> ")" ";"
+<expression> ::= <number> { ("+" | "-") <number> }
+<number> ::= <int>
