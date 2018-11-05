@@ -13,6 +13,10 @@ class Lexer(object):
         self.lexer.add('SUM', r'\+')
         self.lexer.add('SUB', r'\-')
         self.lexer.add('NUMBER', r'\d+')
+        self.lexer.add('MUL', r'\*')
+        self.lexer.add('DIV', r'/')
+        self.lexer.add('NOT', r'!')
+        self.lexer.add('COMPLEMENT', r'~')
         self.lexer.ignore(r'\s+')
 
     def get_lexer(self):

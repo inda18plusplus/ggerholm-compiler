@@ -1,5 +1,7 @@
 from llvmlite import ir
 
+int_type = ir.IntType(8)
+
 
 class Number(object):
     def __init__(self, builder, module, value):
@@ -8,7 +10,31 @@ class Number(object):
         self.value = value
 
     def eval(self):
-        return ir.Constant(ir.IntType(8), int(self.value))
+        return ir.Constant(int_type, int(self.value))
+
+
+class UnaryOp(object):
+    def __init__(self, builder, module, value):
+        self.builder = builder
+        self.module = module
+        self.value = value
+
+
+class Not(UnaryOp):
+    def eval(self):
+        return self.builder.select(
+            self.builder.icmp_unsigned('==', self.value.eval(), ir.Constant(int_type, 0)),
+            ir.Constant(int_type, 1), ir.Constant(int_type, 0))
+
+
+class BitComplement(UnaryOp):
+    def eval(self):
+        return self.builder.not_(self.value.eval())
+
+
+class Negate(UnaryOp):
+    def eval(self):
+        return self.builder.neg(self.value.eval())
 
 
 class BinaryOp(object):
@@ -29,6 +55,16 @@ class Sub(BinaryOp):
         return self.builder.sub(self.left.eval(), self.right.eval())
 
 
+class Mul(BinaryOp):
+    def eval(self):
+        return self.builder.mul(self.left.eval(), self.right.eval())
+
+
+class Div(BinaryOp):
+    def eval(self):
+        return self.builder.udiv(self.left.eval(), self.right.eval())
+
+
 class Print(object):
     def __init__(self, builder, module, printf, value):
         self.builder = builder
@@ -39,9 +75,9 @@ class Print(object):
     def eval(self):
         value = self.value.eval()
 
-        voidptr_ty = ir.IntType(8).as_pointer()
+        voidptr_ty = int_type.as_pointer()
         fmt = '%i \n\0'
-        c_fmt = ir.Constant(ir.ArrayType(ir.IntType(8), len(fmt)), bytearray(fmt.encode('utf-8')))
+        c_fmt = ir.Constant(ir.ArrayType(int_type, len(fmt)), bytearray(fmt.encode('utf-8')))
 
         global_fmt = ir.GlobalVariable(self.module, c_fmt.type, name='fstr')
         global_fmt.linkage = 'internal'
