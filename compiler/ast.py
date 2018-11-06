@@ -19,7 +19,7 @@ class Program(object):
             else:
                 func.eval()
         if not main:
-            raise CodeGenError('No main function.')
+            raise CodeGenError('No main function')
         return main.eval()
 
 
@@ -36,9 +36,9 @@ class FunctionPrototype(object):
             if not isinstance(existing_func, ir.Function):
                 raise CodeGenError('Function / Global name collision', func_name)
             if not existing_func.is_declaration():
-                raise CodeGenError('Redefinition of {0', func_name)
+                raise CodeGenError('Redefinition of {0}', func_name)
             if len(existing_func.function_type.args) != 0:
-                raise CodeGenError('Redefinition with different number of arguments.')
+                raise CodeGenError('Redefinition with different number of arguments')
         else:
             func_ty = ir.FunctionType(int_type, [], False)
             return ir.Function(self.module, func_ty, func_name)
@@ -75,6 +75,54 @@ class FunctionCall(object):
         return self.builder.call(callee_func, [])
 
 
+class IfStatement(object):
+    def __init__(self, builder, module, condition, then_exp, else_exp):
+        self.builder = builder
+        self.module = module
+        self.condition = condition
+        self.then_exp = then_exp
+        self.else_exp = else_exp
+
+    def eval(self):
+        cond_val = self.condition.eval()
+        cmp = self.builder.icmp_signed('!=', cond_val, ir.Constant(int_type, 0))
+
+        then_block = self.builder.function.append_basic_block('then')
+        else_block = ir.Block(self.builder.function, 'else')
+        merge_block = ir.Block(self.builder.function, 'if_mrg')
+        self.builder.cbranch(cmp, then_block, else_block)
+        self.builder.position_at_start(then_block)
+        then_val = self.then_exp.eval()
+        self.builder.branch(merge_block)
+
+        then_block = self.builder.block
+
+        self.builder.function.basic_blocks.append(else_block)
+        self.builder.position_at_start(else_block)
+        else_val = self.else_exp.eval()
+        self.builder.branch(merge_block)
+
+        self.builder.function.basic_blocks.append(merge_block)
+        self.builder.position_at_start(merge_block)
+        phi = self.builder.phi(int_type, 'if_temp')
+        phi.add_incoming(then_val, then_block)
+        phi.add_incoming(else_val, else_block)
+        return phi
+
+
+class ForExpression(object):
+    def __init__(self, builder, module, start, end, step, body):
+        self.builder = builder
+        self.module = module
+        self.start = start
+        self.end = end
+        self.step = step
+        self.body = body
+
+    def eval(self):
+        pass
+
+
 class Number(object):
     def __init__(self, builder, module, value):
         self.builder = builder
@@ -95,7 +143,7 @@ class UnaryOp(object):
 class Not(UnaryOp):
     def eval(self):
         return self.builder.select(
-            self.builder.icmp_unsigned('==', self.value.eval(), ir.Constant(int_type, 0)),
+            self.builder.icmp_signed('==', self.value.eval(), ir.Constant(int_type, 0)),
             ir.Constant(int_type, 1), ir.Constant(int_type, 0))
 
 
@@ -151,9 +199,9 @@ class Print(object):
         fmt = '%i \n\0'
         c_fmt = ir.Constant(ir.ArrayType(ir.IntType(8), len(fmt)), bytearray(fmt.encode('utf-8')))
 
-        global_fmt = self.module.globals.get('fstr')
+        global_fmt = self.module.globals.get('f_str')
         if not global_fmt:
-            global_fmt = ir.GlobalVariable(self.module, c_fmt.type, name='fstr')
+            global_fmt = ir.GlobalVariable(self.module, c_fmt.type, name='f_str')
             global_fmt.linkage = 'internal'
             global_fmt.global_constant = True
             global_fmt.initializer = c_fmt

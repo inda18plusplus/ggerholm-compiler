@@ -1,10 +1,12 @@
 <program> ::= <function> { <function> }
-<function> ::= <int> <identifier> "(" ")" "{" (<call> | <print>) ";" <return_stmt> "}"
+<function> ::= <int> <identifier> "(" ")" "{" <statement> ";" "return" <statement> "}"
+<statement> ::= <call> | <print> | <if>
 <call> ::= <identifier> "(" ")"
 <print> ::= "print" "(" <expression> ")"
-<return_stmt> ::= "return" <exp> ";"
+<if> ::= ...
 <exp> ::= <unary_op> <exp> | <int> | <exp> ("+" | "-" | "*" | "/") <exp> | "(" exp ")"
 <unary_op> ::= "!" | "~" | "-"
 <identifier> ::= [a-zA-Z]\w*
 
 // TODO: Add precedence to BNF
+// TODO: Keep up-to-date

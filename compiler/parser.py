@@ -1,14 +1,15 @@
 from rply import ParserGenerator
 
 from compiler.ast import Sum, Sub, Number, Negate, BitComplement, Not, Div, Mul, Print, Function, FunctionCall, \
-    FunctionPrototype, Program
+    FunctionPrototype, Program, IfStatement
 
 
 class Parser(object):
     def __init__(self, module, builder, printf):
         self.pg = ParserGenerator([
             'NUMBER', 'PRINT', 'OPEN_PAREN', 'CLOSE_PAREN', 'SEMICOLON', 'SUM', 'SUB', 'MUL', 'DIV', 'NOT',
-            'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER'
+            'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER',
+            'IF', 'ELSE'
         ], precedence=[
             ('left', ['SUM', 'SUB']),
             ('left', ['MUL', 'DIV']),
@@ -36,18 +37,13 @@ class Parser(object):
 
         @self.pg.production("""function :
                                PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN OPEN_CURLY
-                               function_call SEMICOLON
-                               RETURN expression SEMICOLON
-                               CLOSE_CURLY""")
-        @self.pg.production("""function :
-                               PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN OPEN_CURLY
-                               print SEMICOLON
-                               RETURN expression SEMICOLON
+                               statement
+                               RETURN statement
                                CLOSE_CURLY""")
         def func(p):
             prototype = FunctionPrototype(self.builder, self.module, p[1])
             body = p[5]
-            return_val = p[8]
+            return_val = p[7]
             return Function(self.builder, self.module, prototype, body, return_val)
 
         @self.pg.production('function_call : IDENTIFIER OPEN_PAREN CLOSE_PAREN')
@@ -57,6 +53,23 @@ class Parser(object):
         @self.pg.production('print : PRINT OPEN_PAREN expression CLOSE_PAREN')
         def print_stmt(p):
             return Print(self.builder, self.module, self.printf, p[2])
+
+        @self.pg.production("""if_stmt :
+                               IF OPEN_PAREN expression CLOSE_PAREN OPEN_CURLY
+                               statement CLOSE_CURLY ELSE OPEN_CURLY
+                               statement CLOSE_CURLY""")
+        def if_stmt(p):
+            condition = p[2]
+            then_exp = p[5]
+            else_exp = p[9]
+            return IfStatement(self.builder, self.module, condition, then_exp, else_exp)
+
+        @self.pg.production('statement : expression SEMICOLON')
+        @self.pg.production('statement : function_call SEMICOLON')
+        @self.pg.production('statement : print SEMICOLON')
+        @self.pg.production('statement : if_stmt')
+        def statement(p):
+            return p[0]
 
         @self.pg.production('expression : OPEN_PAREN expression CLOSE_PAREN')
         def expression_parentheses(p):

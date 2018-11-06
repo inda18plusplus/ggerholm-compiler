@@ -21,6 +21,9 @@ class Lexer(object):
         self.lexer.add('OPEN_CURLY', r'{')
         self.lexer.add('CLOSE_CURLY', r'}')
         self.lexer.add('RETURN', r'return')
+        self.lexer.add('IF', r'if')
+        self.lexer.add('ELSE', r'else')
+        self.lexer.add('EQUALS', r'==')
         self.lexer.add('IDENTIFIER', r'[a-zA-Z]\w*')
         self.lexer.ignore(r'\s+')
 

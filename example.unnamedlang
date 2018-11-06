@@ -4,11 +4,15 @@ int func(){
 }
 
 int main(){
-    func();
+    if (1 + 2 - 3) {
+        second();
+    } else {
+        func();
+    }
     return 5 + 5;
 }
 
-int unused(){
+int second(){
     print(10 + 10 / 2);
     return 5;
 }

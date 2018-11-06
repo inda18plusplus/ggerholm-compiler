@@ -17,18 +17,18 @@ entry:
   %".9" = mul i32 5, %".8"
   %".10" = add i32 %".7", %".9"
   %".11" = sdiv i32 %".10", 5
-  %".12" = bitcast [5 x i8]* @"fstr" to i8*
+  %".12" = bitcast [5 x i8]* @"f_str" to i8*
   %".13" = call i32 (i8*, ...) @"printf"(i8* %".12", i32 %".11")
   ret i32 0
 }
 
-@"fstr" = internal constant [5 x i8] c"%i \0a\00"
-define i32 @"unused"() 
+@"f_str" = internal constant [5 x i8] c"%i \0a\00"
+define i32 @"second"() 
 {
 entry:
   %".2" = sdiv i32 10, 2
   %".3" = add i32 10, %".2"
-  %".4" = bitcast [5 x i8]* @"fstr" to i8*
+  %".4" = bitcast [5 x i8]* @"f_str" to i8*
   %".5" = call i32 (i8*, ...) @"printf"(i8* %".4", i32 %".3")
   ret i32 5
 }
@@ -36,7 +36,18 @@ entry:
 define i32 @"main"() 
 {
 entry:
-  %".2" = call i32 @"func"()
-  %".3" = add i32 5, 5
-  ret i32 %".3"
+  %".2" = add i32 1, 2
+  %".3" = sub i32 %".2", 3
+  %".4" = icmp ne i32 %".3", 0
+  br i1 %".4", label %"then", label %"else"
+then:
+  %".6" = call i32 @"second"()
+  br label %"if_mrg"
+else:
+  %".8" = call i32 @"func"()
+  br label %"if_mrg"
+if_mrg:
+  %"if_temp" = phi i32 [%".6", %"then"], [%".8", %"else"]
+  %".10" = add i32 5, 5
+  ret i32 %".10"
 }
