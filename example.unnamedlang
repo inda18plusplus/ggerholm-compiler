@@ -1,1 +1,14 @@
-print(5 * (5 + !5 - 1) + 5 * ~2);
+int func(){
+    print((-50 * (5 + !5 - 1) + 5 * ~2) / 5);
+    return 0;
+}
+
+int main(){
+    func();
+    return 5 + 5;
+}
+
+int unused(){
+    print(10 + 10 / 2);
+    return 5;
+}

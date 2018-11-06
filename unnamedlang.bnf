@@ -1,5 +1,10 @@
-<program> ::= "return" <exp> ";" | "print" "(" <expression> ")" ";"
-<exp> ::= <unary_op> <exp> | <int> | <exp> ("+" | "-" | "*" | "/") <exp>
+<program> ::= <function> { <function> }
+<function> ::= <int> <identifier> "(" ")" "{" (<call> | <print>) ";" <return_stmt> "}"
+<call> ::= <identifier> "(" ")"
+<print> ::= "print" "(" <expression> ")"
+<return_stmt> ::= "return" <exp> ";"
+<exp> ::= <unary_op> <exp> | <int> | <exp> ("+" | "-" | "*" | "/") <exp> | "(" exp ")"
 <unary_op> ::= "!" | "~" | "-"
+<identifier> ::= [a-zA-Z]\w*
 
 // TODO: Add precedence to BNF

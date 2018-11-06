@@ -1,6 +1,78 @@
 from llvmlite import ir
 
-int_type = ir.IntType(8)
+from compiler.errors import CodeGenError
+
+int_type = ir.IntType(32)
+
+
+class Program(object):
+    def __init__(self, builder, module, functions):
+        self.builder = builder
+        self.module = module
+        self.functions = functions
+
+    def eval(self):
+        main = None
+        for func in self.functions:
+            if func.prototype.name.value == 'main':
+                main = func
+            else:
+                func.eval()
+        if not main:
+            raise CodeGenError('No main function.')
+        return main.eval()
+
+
+class FunctionPrototype(object):
+    def __init__(self, builder, module, name):
+        self.builder = builder
+        self.module = module
+        self.name = name
+
+    def eval(self):
+        func_name = self.name.value
+        if func_name in self.module.globals:
+            existing_func = self.module[func_name]
+            if not isinstance(existing_func, ir.Function):
+                raise CodeGenError('Function / Global name collision', func_name)
+            if not existing_func.is_declaration():
+                raise CodeGenError('Redefinition of {0', func_name)
+            if len(existing_func.function_type.args) != 0:
+                raise CodeGenError('Redefinition with different number of arguments.')
+        else:
+            func_ty = ir.FunctionType(int_type, [], False)
+            return ir.Function(self.module, func_ty, func_name)
+
+
+class Function(object):
+    def __init__(self, builder, module, prototype, body, return_value):
+        self.builder = builder
+        self.module = module
+        self.prototype = prototype
+        self.body = body
+        self.return_value = return_value
+
+    def eval(self):
+        func = self.prototype.eval()
+        block = func.append_basic_block('entry')
+        self.builder.position_at_end(block)
+        self.body.eval()
+        result = self.return_value.eval()
+        self.builder.ret(result)
+        return func
+
+
+class FunctionCall(object):
+    def __init__(self, builder, module, name):
+        self.builder = builder
+        self.module = module
+        self.name = name
+
+    def eval(self):
+        callee_func = self.module.globals.get(self.name.value, None)
+        if not callee_func or not isinstance(callee_func, ir.Function):
+            raise CodeGenError('Call to unknown function', self.name.value)
+        return self.builder.call(callee_func, [])
 
 
 class Number(object):
@@ -62,7 +134,7 @@ class Mul(BinaryOp):
 
 class Div(BinaryOp):
     def eval(self):
-        return self.builder.udiv(self.left.eval(), self.right.eval())
+        return self.builder.sdiv(self.left.eval(), self.right.eval())
 
 
 class Print(object):
@@ -75,14 +147,16 @@ class Print(object):
     def eval(self):
         value = self.value.eval()
 
-        voidptr_ty = int_type.as_pointer()
+        voidptr_ty = ir.IntType(8).as_pointer()
         fmt = '%i \n\0'
-        c_fmt = ir.Constant(ir.ArrayType(int_type, len(fmt)), bytearray(fmt.encode('utf-8')))
+        c_fmt = ir.Constant(ir.ArrayType(ir.IntType(8), len(fmt)), bytearray(fmt.encode('utf-8')))
 
-        global_fmt = ir.GlobalVariable(self.module, c_fmt.type, name='fstr')
-        global_fmt.linkage = 'internal'
-        global_fmt.global_constant = True
-        global_fmt.initializer = c_fmt
+        global_fmt = self.module.globals.get('fstr')
+        if not global_fmt:
+            global_fmt = ir.GlobalVariable(self.module, c_fmt.type, name='fstr')
+            global_fmt.linkage = 'internal'
+            global_fmt.global_constant = True
+            global_fmt.initializer = c_fmt
         fmt_arg = self.builder.bitcast(global_fmt, voidptr_ty)
 
         self.builder.call(self.printf, [fmt_arg, value])

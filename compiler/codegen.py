@@ -14,10 +14,7 @@ class CodeGen(object):
     def _config_llvm(self):
         self.module = ir.Module(name=__file__)
         self.module.triple = self.binding.get_default_triple()
-        func_type = ir.FunctionType(ir.VoidType(), [], False)
-        base_func = ir.Function(self.module, func_type, name='main')
-        block = base_func.append_basic_block(name='entry')
-        self.builder = ir.IRBuilder(block)
+        self.builder = ir.IRBuilder()
 
     def _create_execution_engine(self):
         target = self.binding.Target.from_default_triple()
@@ -33,18 +30,16 @@ class CodeGen(object):
         self.printf = printf
 
     def _compile_ir(self):
-        self.builder.ret_void()
         llvm_ir = str(self.module)
         mod = self.binding.parse_assembly(llvm_ir)
         mod.verify()
         self.engine.add_module(mod)
         self.engine.finalize_object()
         self.engine.run_static_constructors()
-        return mod
 
     def create_ir(self):
         self._compile_ir()
 
     def save_ir(self, filename):
-        with open(filename, 'w') as output_file:
-            output_file.write(str(self.module))
+        with open(filename, 'w') as f:
+            f.write(str(self.module))

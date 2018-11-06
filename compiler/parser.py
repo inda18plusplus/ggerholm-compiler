@@ -1,13 +1,14 @@
 from rply import ParserGenerator
 
-from compiler.ast import Sum, Sub, Number, Negate, BitComplement, Not, Div, Mul, Print
+from compiler.ast import Sum, Sub, Number, Negate, BitComplement, Not, Div, Mul, Print, Function, FunctionCall, \
+    FunctionPrototype, Program
 
 
 class Parser(object):
     def __init__(self, module, builder, printf):
         self.pg = ParserGenerator([
             'NUMBER', 'PRINT', 'OPEN_PAREN', 'CLOSE_PAREN', 'SEMICOLON', 'SUM', 'SUB', 'MUL', 'DIV', 'NOT',
-            'COMPLEMENT'
+            'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER'
         ], precedence=[
             ('left', ['SUM', 'SUB']),
             ('left', ['MUL', 'DIV']),
@@ -19,8 +20,42 @@ class Parser(object):
         self.printf = printf
 
     def parse(self):
-        @self.pg.production('program : PRINT OPEN_PAREN expression CLOSE_PAREN SEMICOLON')
+
+        @self.pg.production('program : function')
+        @self.pg.production('program : program function')
         def program(p):
+            functions = []
+            if len(p) > 1:
+                functions.extend(p[0].functions)
+                functions.append(p[1])
+            else:
+                functions.append(p[0])
+            return Program(self.builder, self.module, functions)
+
+        # TODO: Make pretty
+
+        @self.pg.production("""function :
+                               PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN OPEN_CURLY
+                               function_call SEMICOLON
+                               RETURN expression SEMICOLON
+                               CLOSE_CURLY""")
+        @self.pg.production("""function :
+                               PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN OPEN_CURLY
+                               print SEMICOLON
+                               RETURN expression SEMICOLON
+                               CLOSE_CURLY""")
+        def func(p):
+            prototype = FunctionPrototype(self.builder, self.module, p[1])
+            body = p[5]
+            return_val = p[8]
+            return Function(self.builder, self.module, prototype, body, return_val)
+
+        @self.pg.production('function_call : IDENTIFIER OPEN_PAREN CLOSE_PAREN')
+        def func_call(p):
+            return FunctionCall(self.builder, self.module, p[0])
+
+        @self.pg.production('print : PRINT OPEN_PAREN expression CLOSE_PAREN')
+        def print_stmt(p):
             return Print(self.builder, self.module, self.printf, p[2])
 
         @self.pg.production('expression : OPEN_PAREN expression CLOSE_PAREN')

@@ -17,6 +17,11 @@ class Lexer(object):
         self.lexer.add('DIV', r'/')
         self.lexer.add('NOT', r'!')
         self.lexer.add('COMPLEMENT', r'~')
+        self.lexer.add('PRIMITIVE_DATA_TYPE', r'int')
+        self.lexer.add('OPEN_CURLY', r'{')
+        self.lexer.add('CLOSE_CURLY', r'}')
+        self.lexer.add('RETURN', r'return')
+        self.lexer.add('IDENTIFIER', r'[a-zA-Z]\w*')
         self.lexer.ignore(r'\s+')
 
     def get_lexer(self):
