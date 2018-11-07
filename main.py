@@ -22,6 +22,7 @@ def main():
 
     cg.create_ir()
     cg.save_ir('output/output.ll')
+    print(cg.eval(False))
 
 
 if __name__ == '__main__':

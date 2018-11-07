@@ -28,14 +28,19 @@ define i32 @"second"()
 entry:
   br label %"loop"
 loop:
-  %"count" = phi i32 [0, %"entry"], [%"next_var", %"loop"]
-  %".3" = add i32 3, 2
-  %".4" = bitcast [5 x i8]* @"f_str" to i8*
-  %".5" = call i32 (i8*, ...) @"printf"(i8* %".4", i32 %".3")
-  %"next_var" = add i32 %"count", 1
-  %"loop_cond" = icmp ne i32 %"next_var", 3
-  br i1 %"loop_cond", label %"loop", label %"after_loop"
+  %"count" = phi i32 [0, %"entry"], [%"next_var.1", %"after_loop"]
+  br label %"loop.1"
+loop.1:
+  %"count.1" = phi i32 [0, %"loop"], [%"next_var", %"loop.1"]
+  %".4" = call i32 @"func"()
+  %"next_var" = add i32 %"count.1", 1
+  %"loop_cond" = icmp ne i32 %"next_var", 2
+  br i1 %"loop_cond", label %"loop.1", label %"after_loop"
 after_loop:
+  %"next_var.1" = add i32 %"count", 1
+  %"loop_cond.1" = icmp ne i32 %"next_var.1", 3
+  br i1 %"loop_cond.1", label %"loop", label %"after_loop.1"
+after_loop.1:
   ret i32 5
 }
 
@@ -54,6 +59,7 @@ else:
   br label %"if_mrg"
 if_mrg:
   %"if_temp" = phi i32 [%".6", %"then"], [%".8", %"else"]
-  %".10" = add i32 5, 5
-  ret i32 %".10"
+  %".10" = mul i32 5, 2
+  %".11" = sdiv i32 %".10", 3
+  ret i32 %".11"
 }
