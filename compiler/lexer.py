@@ -31,6 +31,8 @@ class Lexer(object):
         self.lexer.add('GREATER_EQ', r'>=')
         self.lexer.add('EQUALS', r'==')
         self.lexer.add('NOT_EQUALS', r'!=')
+        self.lexer.add('EQUAL_SIGN', r'=')
+        self.lexer.add('COMMA', r',')
         self.lexer.add('IDENTIFIER', r'[a-zA-Z]\w*')
         self.lexer.ignore(r'\s+')
 

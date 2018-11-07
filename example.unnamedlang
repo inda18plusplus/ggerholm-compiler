@@ -1,21 +1,21 @@
-int func(){
-    print((-50 * (5 + !5 - 1) + 5 * ~2) / 5);
+int func(x){
+    print((-x * (5 + !5 - 1) + 5 * ~2) / 5);
     return 0;
 }
 
 int main(){
     if (1 + 2 - 4 < 0) {
-        second();
+        second(25, 10);
     } else {
-        func();
+        func(50);
     }
     return 5 * 2 / 3;
 }
 
-int second(){
-    for (0;3;1) {
-        for (0;2;1) {
-            func();
+int second(x, y){
+    for (i = 0; 3; 1) {
+        for (j = 0; 2; 1) {
+            print(i * x - y * j);
         }
     }
     return 5;

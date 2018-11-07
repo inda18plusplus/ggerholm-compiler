@@ -2,7 +2,7 @@ from llvmlite import ir
 
 from compiler.errors import CodeGenError
 
-int_type = ir.IntType(32)
+data_type = ir.IntType(32)
 
 
 class Program(object):
@@ -14,7 +14,7 @@ class Program(object):
     def eval(self):
         main = None
         for func in self.functions:
-            if func.prototype.name.value == 'main':
+            if func.prototype.name == 'main':
                 main = func
             else:
                 func.eval()
@@ -24,24 +24,31 @@ class Program(object):
 
 
 class FunctionPrototype(object):
-    def __init__(self, builder, module, name):
+    def __init__(self, builder, module, state, name, arg_names):
         self.builder = builder
         self.module = module
+        self.state = state
         self.name = name
+        self.arg_names = arg_names
 
     def eval(self):
-        func_name = self.name.value
+        func_name = self.name
+        func_ty = ir.FunctionType(data_type, [data_type] * len(self.arg_names), False)
         if func_name in self.module.globals:
-            existing_func = self.module[func_name]
-            if not isinstance(existing_func, ir.Function):
+            func = self.module[func_name]
+            if not isinstance(func, ir.Function):
                 raise CodeGenError('Function / Global name collision', func_name)
-            if not existing_func.is_declaration():
+            if not func.is_declaration():
                 raise CodeGenError('Redefinition of {0}', func_name)
-            if len(existing_func.function_type.args) != 0:
+            if len(func.function_type.args) != 0:
                 raise CodeGenError('Redefinition with different number of arguments')
         else:
-            func_ty = ir.FunctionType(int_type, [], False)
-            return ir.Function(self.module, func_ty, func_name)
+            func = ir.Function(self.module, func_ty, func_name)
+
+        for i, arg in enumerate(func.args):
+            arg.name = self.arg_names[i]
+            self.state.func_symbols[arg.name] = arg
+        return func
 
 
 class Function(object):
@@ -63,16 +70,20 @@ class Function(object):
 
 
 class FunctionCall(object):
-    def __init__(self, builder, module, name):
+    def __init__(self, builder, module, name, args):
         self.builder = builder
         self.module = module
         self.name = name
+        self.args = args
 
     def eval(self):
-        callee_func = self.module.globals.get(self.name.value, None)
+        callee_func = self.module.globals.get(self.name, None)
         if not callee_func or not isinstance(callee_func, ir.Function):
-            raise CodeGenError('Call to unknown function', self.name.value)
-        return self.builder.call(callee_func, [])
+            raise CodeGenError('Call to unknown function', self.name)
+        if len(callee_func.args) != len(self.args):
+            raise CodeGenError('Incorrect number of arguments', self.name)
+        call_args = [arg.eval() for arg in self.args]
+        return self.builder.call(callee_func, call_args)
 
 
 class IfStatement(object):
@@ -103,22 +114,24 @@ class IfStatement(object):
 
         self.builder.function.basic_blocks.append(merge_block)
         self.builder.position_at_start(merge_block)
-        phi = self.builder.phi(int_type, 'if_temp')
+        phi = self.builder.phi(data_type, 'if_temp')
         phi.add_incoming(then_val, then_block)
         phi.add_incoming(else_val, else_block)
         return phi
 
 
 class ForLoop(object):
-    def __init__(self, builder, module, state, start, end, step, body):
+    def __init__(self, builder, module, state, var_name, start, end, step, body):
         self.builder = builder
         self.module = module
         self.state = state
+        self.var_name = var_name
         self.start = start
         self.end = end
         self.step = step
         self.body = body
 
+    # TODO: Handle < > and prevent loop body when the initial condition is false.
     def eval(self):
         start_val = self.start.eval()
         entry_block = self.builder.block
@@ -127,30 +140,51 @@ class ForLoop(object):
         self.builder.branch(loop_block)
         self.builder.position_at_start(loop_block)
 
-        phi = self.builder.phi(int_type, 'count')
+        phi = self.builder.phi(data_type, self.var_name)
         phi.add_incoming(start_val, entry_block)
 
+        # Save the variable value in case the name 'i' shadows it
+        old_val = self.state.func_symbols.get(self.var_name)
+        self.state.func_symbols[self.var_name] = phi
+
+        # Add the loop body
         self.body.eval()
 
+        # Decide how much to step
         if self.step is None:
-            step_val = ir.Constant(int_type, 1)
+            step_val = ir.Constant(data_type, 1)
         else:
             step_val = self.step.eval()
         next_var = self.builder.add(phi, step_val, 'next_var')
+
+        # Decide whether or not to break the loop
         end_val = self.end.eval()
         cmp = self.builder.icmp_signed('!=', next_var, end_val, 'loop_cond')
-        # TODO: Handle < > and prevent loop body when the initial condition is false.
-
         loop_end_block = self.builder.block
         after_block = self.builder.function.append_basic_block('after_loop')
-
         self.builder.cbranch(cmp, loop_block, after_block)
 
         self.builder.position_at_start(after_block)
-
         phi.add_incoming(next_var, loop_end_block)
 
-        return ir.Constant(int_type, 0)
+        # Restore the old variable value in case the name 'i' shadowed it
+        if old_val is not None:
+            self.state.func_symbols[self.var_name] = old_val
+        else:
+            del self.state.func_symbols[self.var_name]
+
+        return ir.Constant(data_type, 0)
+
+
+class Variable(object):
+    def __init__(self, builder, module, state, name):
+        self.builder = builder
+        self.module = module
+        self.state = state
+        self.name = name
+
+    def eval(self):
+        return self.state.func_symbols[self.name]
 
 
 class Number(object):
@@ -160,7 +194,7 @@ class Number(object):
         self.value = value
 
     def eval(self):
-        return ir.Constant(int_type, int(self.value))
+        return ir.Constant(data_type, int(self.value))
 
 
 class UnaryOp(object):
@@ -173,8 +207,8 @@ class UnaryOp(object):
 class Not(UnaryOp):
     def eval(self):
         return self.builder.select(
-            self.builder.icmp_signed('==', self.value.eval(), ir.Constant(int_type, 0)),
-            ir.Constant(int_type, 1), ir.Constant(int_type, 0))
+            self.builder.icmp_signed('==', self.value.eval(), ir.Constant(data_type, 0)),
+            ir.Constant(data_type, 1), ir.Constant(data_type, 0))
 
 
 class BitComplement(UnaryOp):

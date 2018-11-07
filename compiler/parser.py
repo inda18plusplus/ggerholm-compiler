@@ -1,11 +1,11 @@
 from rply import ParserGenerator
 
 from compiler.ast import Number, Negate, BitComplement, Not, Print, Function, FunctionCall, \
-    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp
+    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp, Variable
 
 
 class ParserState(object):
-    pass
+    func_symbols = {}
 
 
 class Parser(object):
@@ -13,7 +13,8 @@ class Parser(object):
         self.pg = ParserGenerator([
             'NUMBER', 'PRINT', 'OPEN_PAREN', 'CLOSE_PAREN', 'SEMICOLON', 'SUM', 'SUB', 'MUL', 'DIV', 'NOT',
             'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER',
-            'IF', 'ELSE', 'FOR', 'GREATER', 'LESS', 'GREATER_EQ', 'LESS_EQ', 'EQUALS', 'NOT_EQUALS'
+            'IF', 'ELSE', 'FOR', 'GREATER', 'LESS', 'GREATER_EQ', 'LESS_EQ', 'EQUALS', 'NOT_EQUALS',
+            'COMMA', 'EQUAL_SIGN'
         ], precedence=[
             ('left', ['SUM', 'SUB']),
             ('left', ['MUL', 'DIV']),
@@ -42,19 +43,40 @@ class Parser(object):
         # TODO: Make pretty
 
         @self.pg.production("""function :
-                               PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN OPEN_CURLY
+                               func_proto OPEN_CURLY
                                statement
                                RETURN statement
                                CLOSE_CURLY""")
         def func(state, p):
-            prototype = FunctionPrototype(self.builder, self.module, p[1])
-            body = p[5]
-            return_val = p[7]
-            return Function(self.builder, self.module, prototype, body, return_val)
+            return Function(self.builder, self.module, p[0], p[2], p[4])
+
+        @self.pg.production('func_proto : PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN')
+        @self.pg.production('func_proto : PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN arg_names CLOSE_PAREN')
+        def func_prototype(state, p):
+            if len(p) > 4:
+                return FunctionPrototype(self.builder, self.module, state, p[1].value, p[3])
+            return FunctionPrototype(self.builder, self.module, state, p[1].value, [])
+
+        @self.pg.production('arg_names : IDENTIFIER')
+        @self.pg.production('arg_names : arg_names COMMA IDENTIFIER')
+        def func_arg_names(state, p):
+            if len(p) == 1:
+                return [p[0].value]
+            return p[0] + [p[2].value]
+
+        @self.pg.production('arg_values : expression')
+        @self.pg.production('arg_values : arg_values COMMA expression')
+        def func_arg_values(state, p):
+            if len(p) == 1:
+                return [p[0]]
+            return p[0] + [p[2]]
 
         @self.pg.production('function_call : IDENTIFIER OPEN_PAREN CLOSE_PAREN')
+        @self.pg.production('function_call : IDENTIFIER OPEN_PAREN arg_values CLOSE_PAREN')
         def func_call(state, p):
-            return FunctionCall(self.builder, self.module, p[0])
+            if len(p) > 3:
+                return FunctionCall(self.builder, self.module, p[0].value, p[2])
+            return FunctionCall(self.builder, self.module, p[0].value, [])
 
         @self.pg.production('print : PRINT OPEN_PAREN expression CLOSE_PAREN')
         def print_stmt(state, p):
@@ -71,11 +93,11 @@ class Parser(object):
             return IfStatement(self.builder, self.module, condition, then_exp, else_exp)
 
         @self.pg.production("""for_loop :
-                               FOR OPEN_PAREN expression SEMICOLON
+                               FOR OPEN_PAREN IDENTIFIER EQUAL_SIGN expression SEMICOLON
                                expression SEMICOLON expression CLOSE_PAREN OPEN_CURLY
                                statement CLOSE_CURLY""")
         def for_loop(state, p):
-            return ForLoop(self.builder, self.module, state, p[2], p[4], p[6], p[9])
+            return ForLoop(self.builder, self.module, state, p[2].value, p[4], p[6], p[8], p[11])
 
         @self.pg.production('statement : expression SEMICOLON')
         @self.pg.production('statement : function_call SEMICOLON')
@@ -121,6 +143,10 @@ class Parser(object):
         @self.pg.production('expression : NUMBER')
         def number(state, p):
             return Number(self.builder, self.module, p[0].value)
+
+        @self.pg.production('expression : IDENTIFIER')
+        def variable(state, p):
+            return Variable(self.builder, self.module, state, p[0].value)
 
         @self.pg.error
         def error_handle(state, token):
