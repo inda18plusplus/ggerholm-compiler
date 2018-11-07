@@ -4,7 +4,7 @@ int func(){
 }
 
 int main(){
-    if (1 + 2 - 3) {
+    if (1 + 2 - 4) {
         second();
     } else {
         func();
@@ -13,6 +13,8 @@ int main(){
 }
 
 int second(){
-    print(10 + 10 / 2);
+    for (0;3;1) {
+        print(3 + 2);
+    }
     return 5;
 }

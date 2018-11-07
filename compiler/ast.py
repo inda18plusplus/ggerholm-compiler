@@ -85,7 +85,7 @@ class IfStatement(object):
 
     def eval(self):
         cond_val = self.condition.eval()
-        cmp = self.builder.icmp_signed('!=', cond_val, ir.Constant(int_type, 0))
+        cmp = self.builder.icmp_signed('!=', cond_val, ir.Constant(ir.IntType(1), 0))
 
         then_block = self.builder.function.append_basic_block('then')
         else_block = ir.Block(self.builder.function, 'else')
@@ -110,17 +110,48 @@ class IfStatement(object):
         return phi
 
 
-class ForExpression(object):
-    def __init__(self, builder, module, start, end, step, body):
+class ForLoop(object):
+    def __init__(self, builder, module, state, start, end, step, body):
         self.builder = builder
         self.module = module
+        self.state = state
         self.start = start
         self.end = end
         self.step = step
         self.body = body
 
     def eval(self):
-        pass
+        start_val = self.start.eval()
+        entry_block = self.builder.block
+        loop_block = self.builder.function.append_basic_block('loop')
+
+        self.builder.branch(loop_block)
+        self.builder.position_at_start(loop_block)
+
+        phi = self.builder.phi(int_type, 'count')
+        phi.add_incoming(start_val, entry_block)
+
+        self.body.eval()
+
+        if self.step is None:
+            step_val = ir.Constant(int_type, 1)
+        else:
+            step_val = self.step.eval()
+        next_var = self.builder.add(phi, step_val, 'next_var')
+        end_val = self.end.eval()
+        cmp = self.builder.icmp_signed('!=', next_var, end_val, 'loop_cond')
+        # TODO: Handle < > and prevent loop body when the initial condition is false.
+
+        loop_end_block = self.builder.block
+        after_block = self.builder.function.append_basic_block('after_loop')
+
+        self.builder.cbranch(cmp, loop_block, after_block)
+
+        self.builder.position_at_start(after_block)
+
+        phi.add_incoming(next_var, loop_end_block)
+
+        return ir.Constant(int_type, 0)
 
 
 class Number(object):

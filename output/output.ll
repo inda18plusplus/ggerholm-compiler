@@ -26,10 +26,16 @@ entry:
 define i32 @"second"() 
 {
 entry:
-  %".2" = sdiv i32 10, 2
-  %".3" = add i32 10, %".2"
+  br label %"loop"
+loop:
+  %"count" = phi i32 [0, %"entry"], [%"next_var", %"loop"]
+  %".3" = add i32 3, 2
   %".4" = bitcast [5 x i8]* @"f_str" to i8*
   %".5" = call i32 (i8*, ...) @"printf"(i8* %".4", i32 %".3")
+  %"next_var" = add i32 %"count", 1
+  %"loop_cond" = icmp ne i32 %"next_var", 3
+  br i1 %"loop_cond", label %"loop", label %"after_loop"
+after_loop:
   ret i32 5
 }
 
@@ -37,7 +43,7 @@ define i32 @"main"()
 {
 entry:
   %".2" = add i32 1, 2
-  %".3" = sub i32 %".2", 3
+  %".3" = sub i32 %".2", 4
   %".4" = icmp ne i32 %".3", 0
   br i1 %".4", label %"then", label %"else"
 then:

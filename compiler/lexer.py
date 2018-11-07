@@ -24,6 +24,7 @@ class Lexer(object):
         self.lexer.add('IF', r'if')
         self.lexer.add('ELSE', r'else')
         self.lexer.add('EQUALS', r'==')
+        self.lexer.add('FOR', r'for')
         self.lexer.add('IDENTIFIER', r'[a-zA-Z]\w*')
         self.lexer.ignore(r'\s+')
 

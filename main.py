@@ -1,6 +1,6 @@
 from compiler.codegen import CodeGen
 from compiler.lexer import Lexer
-from compiler.parser import Parser
+from compiler.parser import Parser, ParserState
 
 
 def main():
@@ -18,7 +18,7 @@ def main():
     pg = Parser(module, builder, printf)
     pg.parse()
     parser = pg.get_parser()
-    parser.parse(tokens).eval()
+    parser.parse(tokens, state=ParserState()).eval()
 
     cg.create_ir()
     cg.save_ir('output/output.ll')
