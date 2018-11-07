@@ -25,6 +25,12 @@ class Lexer(object):
         self.lexer.add('ELSE', r'else')
         self.lexer.add('EQUALS', r'==')
         self.lexer.add('FOR', r'for')
+        self.lexer.add('LESS', r'<')
+        self.lexer.add('GREATER', r'>')
+        self.lexer.add('LESS_EQ', r'<=')
+        self.lexer.add('GREATER_EQ', r'>=')
+        self.lexer.add('EQUALS', r'==')
+        self.lexer.add('NOT_EQUALS', r'!=')
         self.lexer.add('IDENTIFIER', r'[a-zA-Z]\w*')
         self.lexer.ignore(r'\s+')
 

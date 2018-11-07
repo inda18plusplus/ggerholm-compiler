@@ -4,7 +4,7 @@ int func(){
 }
 
 int main(){
-    if (1 + 2 - 4) {
+    if (1 + 2 - 4 < 0) {
         second();
     } else {
         func();

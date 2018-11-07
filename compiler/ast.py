@@ -85,12 +85,11 @@ class IfStatement(object):
 
     def eval(self):
         cond_val = self.condition.eval()
-        cmp = self.builder.icmp_signed('!=', cond_val, ir.Constant(ir.IntType(1), 0))
 
         then_block = self.builder.function.append_basic_block('then')
         else_block = ir.Block(self.builder.function, 'else')
         merge_block = ir.Block(self.builder.function, 'if_mrg')
-        self.builder.cbranch(cmp, then_block, else_block)
+        self.builder.cbranch(cond_val, then_block, else_block)
         self.builder.position_at_start(then_block)
         then_val = self.then_exp.eval()
         self.builder.branch(merge_block)
@@ -189,31 +188,25 @@ class Negate(UnaryOp):
 
 
 class BinaryOp(object):
-    def __init__(self, builder, module, left, right):
+    def __init__(self, builder, module, operator, left, right):
         self.builder = builder
         self.module = module
+        self.operator = operator
         self.left = left
         self.right = right
 
-
-class Sum(BinaryOp):
     def eval(self):
-        return self.builder.add(self.left.eval(), self.right.eval())
-
-
-class Sub(BinaryOp):
-    def eval(self):
-        return self.builder.sub(self.left.eval(), self.right.eval())
-
-
-class Mul(BinaryOp):
-    def eval(self):
-        return self.builder.mul(self.left.eval(), self.right.eval())
-
-
-class Div(BinaryOp):
-    def eval(self):
-        return self.builder.sdiv(self.left.eval(), self.right.eval())
+        op = self.operator
+        if op == '+':
+            return self.builder.add(self.left.eval(), self.right.eval())
+        elif op == '-':
+            return self.builder.sub(self.left.eval(), self.right.eval())
+        elif op == '*':
+            return self.builder.mul(self.left.eval(), self.right.eval())
+        elif op == '/':
+            return self.builder.sdiv(self.left.eval(), self.right.eval())
+        elif op == '<' or op == '<=' or op == '>' or op == '>=' or op == '==' or op == '!=':
+            return self.builder.icmp_signed(op, self.left.eval(), self.right.eval())
 
 
 class Print(object):

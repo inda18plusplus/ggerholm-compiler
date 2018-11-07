@@ -49,7 +49,7 @@ define i32 @"main"()
 entry:
   %".2" = add i32 1, 2
   %".3" = sub i32 %".2", 4
-  %".4" = icmp ne i32 %".3", 0
+  %".4" = icmp slt i32 %".3", 0
   br i1 %".4", label %"then", label %"else"
 then:
   %".6" = call i32 @"second"()

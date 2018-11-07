@@ -1,7 +1,7 @@
 from rply import ParserGenerator
 
-from compiler.ast import Sum, Sub, Number, Negate, BitComplement, Not, Div, Mul, Print, Function, FunctionCall, \
-    FunctionPrototype, Program, IfStatement, ForLoop
+from compiler.ast import Number, Negate, BitComplement, Not, Print, Function, FunctionCall, \
+    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp
 
 
 class ParserState(object):
@@ -13,11 +13,13 @@ class Parser(object):
         self.pg = ParserGenerator([
             'NUMBER', 'PRINT', 'OPEN_PAREN', 'CLOSE_PAREN', 'SEMICOLON', 'SUM', 'SUB', 'MUL', 'DIV', 'NOT',
             'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER',
-            'IF', 'ELSE', 'FOR'
+            'IF', 'ELSE', 'FOR', 'GREATER', 'LESS', 'GREATER_EQ', 'LESS_EQ', 'EQUALS', 'NOT_EQUALS'
         ], precedence=[
             ('left', ['SUM', 'SUB']),
             ('left', ['MUL', 'DIV']),
-            ('left', ['NOT', 'COMPLEMENT'])
+            ('left', ['NOT', 'COMPLEMENT']),
+            ('left', ['GREATER', 'GREATER_EQ', 'LESS', 'LESS_EQ']),
+            ('left', ['EQUALS', 'NOT_EQUALS'])
         ])
 
         self.module = module
@@ -59,7 +61,7 @@ class Parser(object):
             return Print(self.builder, self.module, self.printf, p[2])
 
         @self.pg.production("""if_stmt :
-                               IF OPEN_PAREN expression CLOSE_PAREN OPEN_CURLY
+                               IF OPEN_PAREN bool_exp CLOSE_PAREN OPEN_CURLY
                                statement CLOSE_CURLY ELSE OPEN_CURLY
                                statement CLOSE_CURLY""")
         def if_stmt(state, p):
@@ -91,18 +93,17 @@ class Parser(object):
         @self.pg.production('expression : expression SUB expression')
         @self.pg.production('expression : expression MUL expression')
         @self.pg.production('expression : expression DIV expression')
+        @self.pg.production('bool_exp : expression LESS expression')
+        @self.pg.production('bool_exp : expression GREATER expression')
+        @self.pg.production('bool_exp : expression LESS_EQ expression')
+        @self.pg.production('bool_exp : expression GREATER_EQ expression')
+        @self.pg.production('bool_exp : expression EQUALS expression')
+        @self.pg.production('bool_exp : expression NOT_EQUALS expression')
         def binary_op(state, p):
             left = p[0]
             right = p[2]
-            operator = p[1]
-            if operator.gettokentype() == 'SUM':
-                return Sum(self.builder, self.module, left, right)
-            elif operator.gettokentype() == 'SUB':
-                return Sub(self.builder, self.module, left, right)
-            elif operator.gettokentype() == 'MUL':
-                return Mul(self.builder, self.module, left, right)
-            elif operator.gettokentype() == 'DIV':
-                return Div(self.builder, self.module, left, right)
+            operator = p[1].value
+            return BinaryOp(self.builder, self.module, operator, left, right)
 
         @self.pg.production('expression : SUB expression')
         @self.pg.production('expression : COMPLEMENT expression')
