@@ -6,17 +6,26 @@ int func(x){
 int main(){
     if (1 + 2 - 4 < 0) {
         second(25, 10);
+        func(50);
     } else {
         func(50);
     }
-    return 5 * 2 / 3;
+    print(2 * 6);
+
+    for (i = 2; i > -5; -1){
+        print(i);
+
+        for (j = 0; j < 2; 1){
+            i = i - 1;
+        }
+    }
+
+    return 2 * 4 / 3;
 }
 
 int second(x, y){
-    for (i = 0; 3; 1) {
-        for (j = 0; 2; 1) {
-            print(i * x - y * j);
-        }
-    }
+    print(x = 4 * y);
+    x = x - 4;
+    print(x);
     return 5;
 }

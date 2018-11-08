@@ -18,11 +18,11 @@ def main():
     pg = Parser(module, builder, printf)
     pg.parse()
     parser = pg.get_parser()
-    parser.parse(tokens, state=ParserState()).eval()
+    parser.parse(tokens, state=ParserState()).generate()
 
     cg.create_ir()
     cg.save_ir('output/output.ll')
-    print(cg.eval(False))
+    print(cg.run(False))
 
 
 if __name__ == '__main__':

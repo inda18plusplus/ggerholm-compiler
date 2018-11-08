@@ -46,7 +46,7 @@ class CodeGen(object):
         self.engine.finalize_object()
         self.engine.run_static_constructors()
 
-    def eval(self, recompile=True):
+    def run(self, recompile=True):
         if recompile:
             self.create_ir()
         main_function = CFUNCTYPE(c_int)(self.engine.get_function_address('main'))
