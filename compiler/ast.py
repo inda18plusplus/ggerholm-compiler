@@ -110,7 +110,7 @@ class IfStatement(object):
 
         then_block = self.builder.function.append_basic_block('then')
         else_block = ir.Block(self.builder.function, 'else')
-        merge_block = ir.Block(self.builder.function, 'if_mrg')
+        merge_block = ir.Block(self.builder.function, 'if_block')
         self.builder.cbranch(cond_val, then_block, else_block)
         self.builder.position_at_start(then_block)
         then_val = self.then_body[0].generate()
@@ -129,7 +129,7 @@ class IfStatement(object):
 
         self.builder.function.basic_blocks.append(merge_block)
         self.builder.position_at_start(merge_block)
-        phi = self.builder.phi(data_type, 'if_temp')
+        phi = self.builder.phi(data_type, 'if_phi')
         phi.add_incoming(then_val, then_block)
         phi.add_incoming(else_val, else_block)
         return phi
@@ -295,4 +295,4 @@ class Print(object):
             global_fmt.initializer = c_fmt
         fmt_arg = self.builder.bitcast(global_fmt, voidptr_ty)
 
-        self.builder.call(self.printf, [fmt_arg, value])
+        return self.builder.call(self.printf, [fmt_arg, value])

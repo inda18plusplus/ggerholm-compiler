@@ -16,12 +16,11 @@ class Parser(object):
             'IF', 'ELSE', 'FOR', 'GREATER', 'LESS', 'GREATER_EQ', 'LESS_EQ', 'EQUALS', 'NOT_EQUALS',
             'COMMA', 'EQUAL_SIGN'
         ], precedence=[
+            ('left', ['EQUALS', 'NOT_EQUALS', 'GREATER', 'GREATER_EQ', 'LESS', 'LESS_EQ']),
             ('right', ['EQUAL_SIGN']),
             ('left', ['SUM', 'SUB']),
             ('left', ['MUL', 'DIV']),
-            ('right', ['NOT', 'COMPLEMENT']),
-            ('left', ['GREATER', 'GREATER_EQ', 'LESS', 'LESS_EQ']),
-            ('left', ['EQUALS', 'NOT_EQUALS'])
+            ('right', ['NOT', 'COMPLEMENT'])
         ])
 
         self.module = module
@@ -116,8 +115,6 @@ class Parser(object):
         @self.pg.production('expression : OPEN_PAREN expression CLOSE_PAREN')
         def expression_parentheses(state, p):
             return p[1]
-
-        # TODO: Fix <= >=
 
         @self.pg.production('expression : expression SUM expression')
         @self.pg.production('expression : expression SUB expression')
