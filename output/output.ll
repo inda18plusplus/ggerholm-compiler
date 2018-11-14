@@ -15,8 +15,8 @@ entry:
   %".6" = add i32 5, %".5"
   %".7" = sub i32 %".6", 1
   %".8" = mul i32 %"x.2", %".7"
-  %".9" = xor i32 %".8", -1
-  %".10" = sub i32 0, 2
+  %".9" = sub i32 0, %".8"
+  %".10" = xor i32 2, -1
   %".11" = mul i32 5, %".10"
   %".12" = add i32 %".9", %".11"
   %".13" = sdiv i32 %".12", 5
@@ -42,8 +42,8 @@ entry:
   %".10" = sub i32 %"x.2", 4
   store i32 %".10", i32* %"x.1"
   %"x.3" = load i32, i32* %"x.1"
-  %".12" = xor i32 %"x.3", -1
-  %".13" = xor i32 4, -1
+  %".12" = sub i32 0, %"x.3"
+  %".13" = sub i32 0, 4
   %".14" = icmp sle i32 %".12", %".13"
   br i1 %".14", label %"then", label %"else"
 then:
@@ -106,12 +106,12 @@ loop.1:
   %"loop_cond" = icmp ne i1 %".24", 0
   br i1 %"loop_cond", label %"loop.1", label %"after_loop"
 after_loop:
-  %".26" = xor i32 1, -1
+  %".26" = sub i32 0, 1
   %"i.3" = load i32, i32* %"i"
   %"next_value.1" = add i32 %"i.3", %".26"
   store i32 %"next_value.1", i32* %"i"
   %"i.4" = load i32, i32* %"i"
-  %".28" = xor i32 5, -1
+  %".28" = sub i32 0, 5
   %".29" = icmp sgt i32 %"i.4", %".28"
   %"loop_cond.1" = icmp ne i1 %".29", 0
   br i1 %"loop_cond.1", label %"loop", label %"after_loop.1"

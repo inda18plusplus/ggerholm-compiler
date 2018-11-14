@@ -229,9 +229,9 @@ class UnaryOp(object):
             return self.builder.select(
                 self.builder.icmp_signed('==', self.value.generate(), ir.Constant(ir.IntType(32), 0)),
                 ir.Constant(ir.IntType(32), 1), ir.Constant(ir.IntType(32), 0))
-        elif op == 'COMPLEMENT':
-            return self.builder.neg(self.value.generate())
         elif op == 'SUB':
+            return self.builder.neg(self.value.generate())
+        elif op == 'COMPLEMENT':
             return self.builder.not_(self.value.generate())
 
 
