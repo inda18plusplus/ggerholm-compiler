@@ -41,7 +41,7 @@ class FunctionPrototype(object):
                 raise CodeGenError('Function / Global name collision', func_name)
             if not func.is_declaration():
                 raise CodeGenError('Redefinition of {0}', func_name)
-            if len(func.function_type.args) != 0:
+            if len(func.function_type.args) != len(self.arg_names):
                 raise CodeGenError('Redefinition with different number of arguments')
         else:
             func = ir.Function(self.module, func_ty, func_name)
@@ -110,7 +110,7 @@ class IfStatement(object):
 
         then_block = self.builder.function.append_basic_block('then')
         else_block = ir.Block(self.builder.function, 'else')
-        merge_block = ir.Block(self.builder.function, 'if_block')
+        merge_block = ir.Block(self.builder.function, 'after_if')
         self.builder.cbranch(cond_val, then_block, else_block)
         self.builder.position_at_start(then_block)
         then_val = None
@@ -158,7 +158,7 @@ class ForLoop(object):
         self.builder.branch(loop_block)
         self.builder.position_at_start(loop_block)
 
-        # Save the variable value in case the name 'i' shadows it
+        # Save the variable value in case the counter variable name shadows it
         old_var_address = self.state.func_symbols.get(self.var_name)
         self.state.func_symbols[self.var_name] = var_address
 
@@ -183,7 +183,7 @@ class ForLoop(object):
         self.builder.cbranch(cmp, loop_block, after_block)
         self.builder.position_at_start(after_block)
 
-        # Restore the old variable value in case the name 'i' shadowed it
+        # Restore the old variable value in case the counter name shadowed it
         if old_var_address is not None:
             self.state.func_symbols[self.var_name] = old_var_address
         else:
@@ -216,28 +216,23 @@ class Number(object):
 
 
 class UnaryOp(object):
-    def __init__(self, builder, module, state, value):
+    def __init__(self, builder, module, state, operator, value):
         self.builder = builder
         self.module = module
         self.state = state
+        self.operator = operator
         self.value = value
 
-
-class Not(UnaryOp):
     def generate(self):
-        return self.builder.select(
-            self.builder.icmp_signed('==', self.value.generate(), ir.Constant(ir.IntType(32), 0)),
-            ir.Constant(ir.IntType(32), 1), ir.Constant(ir.IntType(32), 0))
-
-
-class BitComplement(UnaryOp):
-    def generate(self):
-        return self.builder.not_(self.value.generate())
-
-
-class Negate(UnaryOp):
-    def generate(self):
-        return self.builder.neg(self.value.generate())
+        op = self.operator
+        if op == 'NOT':
+            return self.builder.select(
+                self.builder.icmp_signed('==', self.value.generate(), ir.Constant(ir.IntType(32), 0)),
+                ir.Constant(ir.IntType(32), 1), ir.Constant(ir.IntType(32), 0))
+        elif op == 'COMPLEMENT':
+            return self.builder.neg(self.value.generate())
+        elif op == 'SUB':
+            return self.builder.not_(self.value.generate())
 
 
 class BinaryOp(object):
@@ -251,23 +246,28 @@ class BinaryOp(object):
 
     def generate(self):
         op = self.operator
-        if op == '=':
+        if op == 'EQUAL_SIGN':
             if not isinstance(self.left, Variable):
                 raise CodeGenError('Invalid assignment')
             var_address = self.state.func_symbols[self.left.name]
             value = self.right.generate()
             self.builder.store(value, var_address)
             return value
-        elif op == '+':
+        elif op == 'SUM':
             return self.builder.add(self.left.generate(), self.right.generate())
-        elif op == '-':
+        elif op == 'SUB':
             return self.builder.sub(self.left.generate(), self.right.generate())
-        elif op == '*':
+        elif op == 'MUL':
             return self.builder.mul(self.left.generate(), self.right.generate())
-        elif op == '/':
+        elif op == 'DIV':
             return self.builder.sdiv(self.left.generate(), self.right.generate())
-        elif op == '<' or op == '<=' or op == '>' or op == '>=' or op == '==' or op == '!=':
-            return self.builder.icmp_signed(op, self.left.generate(), self.right.generate())
+        elif op == 'LESS' or op == 'LESS_EQ' or op == 'GREATER' or op == 'GREATER_EQ' \
+                or op == 'EQUALS' or op == 'NOT_EQUALS':
+
+            standard_ops = {
+                'LESS': '<', 'LESS_EQ': '<=', 'GREATER': '>', 'GREATER_EQ': '>=', 'EQUALS': '==', 'NOT_EQUALS': '!='
+            }
+            return self.builder.icmp_signed(standard_ops[op], self.left.generate(), self.right.generate())
 
 
 class Print(object):

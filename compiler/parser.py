@@ -1,7 +1,7 @@
 from rply import ParserGenerator
 
-from compiler.ast import Number, Negate, BitComplement, Not, Print, Function, FunctionCall, \
-    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp, Variable
+from compiler.ast import Number, Print, Function, FunctionCall, \
+    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp, Variable, UnaryOp
 
 
 class ParserState(object):
@@ -129,26 +129,21 @@ class Parser(object):
         def binary_op(state, p):
             left = p[0]
             right = p[2]
-            operator = p[1].value
+            operator = p[1].gettokentype()
             return BinaryOp(self.builder, self.module, state, operator, left, right)
 
         @self.pg.production('expression : IDENTIFIER EQUAL_SIGN expression')
         def var_assignment(state, p):
             var = variable(state, p)
-            return BinaryOp(self.builder, self.module, state, '=', var, p[2])
+            return BinaryOp(self.builder, self.module, state, 'EQUAL_SIGN', var, p[2])
 
         @self.pg.production('expression : SUB expression')
         @self.pg.production('expression : COMPLEMENT expression')
         @self.pg.production('expression : NOT expression')
         def unary_op(state, p):
-            operator = p[0]
+            operator = p[0].gettokentype()
             value = p[1]
-            if operator.gettokentype() == 'SUB':
-                return Negate(self.builder, self.module, state, value)
-            elif operator.gettokentype() == 'COMPLEMENT':
-                return BitComplement(self.builder, self.module, state, value)
-            elif operator.gettokentype() == 'NOT':
-                return Not(self.builder, self.module, state, value)
+            return UnaryOp(self.builder, self.module, state, operator, value)
 
         @self.pg.production('expression : NUMBER')
         def number(state, p):
