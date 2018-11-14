@@ -113,18 +113,16 @@ class IfStatement(object):
         merge_block = ir.Block(self.builder.function, 'if_block')
         self.builder.cbranch(cond_val, then_block, else_block)
         self.builder.position_at_start(then_block)
-        then_val = self.then_body[0].generate()
-        for stmt in self.then_body[1:]:
-            stmt.generate()
+        then_val = None
+        for stmt in self.then_body:
+            then_val = stmt.generate()
         self.builder.branch(merge_block)
-
-        then_block = self.builder.block
 
         self.builder.function.basic_blocks.append(else_block)
         self.builder.position_at_start(else_block)
-        else_val = self.else_body[0].generate()
-        for stmt in self.else_body[1:]:
-            stmt.generate()
+        else_val = None
+        for stmt in self.else_body:
+            else_val = stmt.generate()
         self.builder.branch(merge_block)
 
         self.builder.function.basic_blocks.append(merge_block)
@@ -146,7 +144,7 @@ class ForLoop(object):
         self.step = step
         self.body = body
 
-    # TODO: Handle < > and prevent loop body when the initial condition is false.
+    # TODO: Prevent loop body when the initial condition is false.
     def generate(self):
         saved_block = self.builder.block
         self.builder.goto_entry_block()
@@ -179,7 +177,7 @@ class ForLoop(object):
 
         # Decide whether or not to break the loop
         end_val = self.end_cond.generate()
-        cmp = self.builder.icmp_signed('!=', end_val, ir.Constant(data_type, 0), 'loop_cond')
+        cmp = self.builder.icmp_signed('!=', end_val, ir.Constant(ir.IntType(32), 0), 'loop_cond')
 
         after_block = self.builder.function.append_basic_block('after_loop')
         self.builder.cbranch(cmp, loop_block, after_block)
@@ -228,8 +226,8 @@ class UnaryOp(object):
 class Not(UnaryOp):
     def generate(self):
         return self.builder.select(
-            self.builder.icmp_signed('==', self.value.generate(), ir.Constant(data_type, 0)),
-            ir.Constant(data_type, 1), ir.Constant(data_type, 0))
+            self.builder.icmp_signed('==', self.value.generate(), ir.Constant(ir.IntType(32), 0)),
+            ir.Constant(ir.IntType(32), 1), ir.Constant(ir.IntType(32), 0))
 
 
 class BitComplement(UnaryOp):

@@ -80,7 +80,7 @@ else:
   %".10" = call i32 (i8*, ...) @"printf"(i8* %".9", i32 3)
   br label %"if_block"
 if_block:
-  %"if_phi" = phi i32 [%".6", %"then"], [%".8", %"else"]
+  %"if_phi" = phi i32 [%".6", %"then"], [%".10", %"else"]
   %".12" = mul i32 2, 6
   %".13" = bitcast [5 x i8]* @"f_str" to i8*
   %".14" = call i32 (i8*, ...) @"printf"(i8* %".13", i32 %".12")
