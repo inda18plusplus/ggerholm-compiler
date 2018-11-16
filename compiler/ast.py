@@ -2,13 +2,17 @@ from llvmlite import ir
 
 from compiler.errors import CodeGenError
 
-data_type = ir.IntType(32)
+
+class Node(object):
+    def generate(self):
+        pass
 
 
-class Program(object):
-    def __init__(self, builder, module, state, functions):
-        self.builder = builder
-        self.module = module
+class Program(Node):
+    def __init__(self, cg, state, functions):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.functions = functions
 
@@ -24,17 +28,18 @@ class Program(object):
         return main.generate()
 
 
-class FunctionPrototype(object):
-    def __init__(self, builder, module, state, name, arg_names):
-        self.builder = builder
-        self.module = module
+class FunctionPrototype(Node):
+    def __init__(self, cg, state, name, arg_names):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.name = name
         self.arg_names = arg_names
 
     def generate(self):
         func_name = self.name
-        func_ty = ir.FunctionType(data_type, [data_type] * len(self.arg_names), False)
+        func_ty = ir.FunctionType(self.cg.int64, [self.cg.int64] * len(self.arg_names), False)
         if func_name in self.module.globals:
             func = self.module[func_name]
             if not isinstance(func, ir.Function):
@@ -49,10 +54,11 @@ class FunctionPrototype(object):
         return func
 
 
-class Function(object):
-    def __init__(self, builder, module, state, prototype, body, return_value):
-        self.builder = builder
-        self.module = module
+class Function(Node):
+    def __init__(self, cg, state, prototype, body, return_value):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.prototype = prototype
         self.body = body
@@ -66,7 +72,7 @@ class Function(object):
 
         for i, arg in enumerate(func.args):
             arg.name = self.prototype.arg_names[i]
-            address = self.builder.alloca(data_type, name=arg.name)
+            address = self.builder.alloca(self.cg.int64, name=arg.name)
             self.builder.store(arg, address)
             self.state.func_symbols[arg.name] = address
 
@@ -78,10 +84,11 @@ class Function(object):
         return func
 
 
-class FunctionCall(object):
-    def __init__(self, builder, module, state, name, args):
-        self.builder = builder
-        self.module = module
+class FunctionCall(Node):
+    def __init__(self, cg, state, name, args):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.name = name
         self.args = args
@@ -90,16 +97,29 @@ class FunctionCall(object):
         callee_func = self.module.globals.get(self.name, None)
         if not callee_func or not isinstance(callee_func, ir.Function):
             raise CodeGenError('Call to unknown function', self.name)
-        if len(callee_func.args) != len(self.args):
+        if not callee_func.function_type.var_arg and len(callee_func.args) != len(self.args):
             raise CodeGenError('Incorrect number of arguments', self.name)
-        call_args = [arg.generate() for arg in self.args]
+        call_args = [arg.generate() if isinstance(arg, Node) else arg for arg in self.args]
         return self.builder.call(callee_func, call_args)
 
 
-class IfStatement(object):
-    def __init__(self, builder, module, state, condition, then_body, else_body):
-        self.builder = builder
-        self.module = module
+class Print(FunctionCall):
+    def __init__(self, cg, state, value):
+        super().__init__(cg, state, 'printf', [])
+        self.value = value
+
+    def generate(self):
+        global_fmt = self.module.globals.get('number_fmt')
+        fmt_arg = self.builder.bitcast(global_fmt, ir.IntType(8).as_pointer())
+        self.args = [fmt_arg, self.value]
+        return super().generate()
+
+
+class IfStatement(Node):
+    def __init__(self, cg, state, condition, then_body, else_body):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.condition = condition
         self.then_body = then_body
@@ -127,16 +147,17 @@ class IfStatement(object):
 
         self.builder.function.basic_blocks.append(merge_block)
         self.builder.position_at_start(merge_block)
-        phi = self.builder.phi(data_type, 'if_phi')
+        phi = self.builder.phi(self.cg.int64, 'if_phi')
         phi.add_incoming(then_val, then_block)
         phi.add_incoming(else_val, else_block)
         return phi
 
 
-class ForLoop(object):
-    def __init__(self, builder, module, state, var_name, start, end_cond, step, body):
-        self.builder = builder
-        self.module = module
+class ForLoop(Node):
+    def __init__(self, cg, state, var_name, start, end_cond, step, body):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.var_name = var_name
         self.start = start
@@ -148,7 +169,7 @@ class ForLoop(object):
     def generate(self):
         saved_block = self.builder.block
         self.builder.goto_entry_block()
-        var_address = self.builder.alloca(data_type, name=self.var_name)
+        var_address = self.builder.alloca(self.cg.int64, name=self.var_name)
         self.builder.position_at_end(saved_block)
 
         start_val = self.start.generate()
@@ -168,7 +189,7 @@ class ForLoop(object):
 
         # Decide how much to step
         if self.step is None:
-            step_val = ir.Constant(data_type, 1)
+            step_val = ir.Constant(self.cg.int64, 1)
         else:
             step_val = self.step.generate()
         cur_var = self.builder.load(var_address, self.var_name)
@@ -177,7 +198,7 @@ class ForLoop(object):
 
         # Decide whether or not to break the loop
         end_val = self.end_cond.generate()
-        cmp = self.builder.icmp_signed('!=', end_val, ir.Constant(ir.IntType(32), 0), 'loop_cond')
+        cmp = self.builder.icmp_signed('!=', end_val, ir.Constant(self.cg.int64, 0), 'loop_cond')
 
         after_block = self.builder.function.append_basic_block('after_loop')
         self.builder.cbranch(cmp, loop_block, after_block)
@@ -189,13 +210,14 @@ class ForLoop(object):
         else:
             del self.state.func_symbols[self.var_name]
 
-        return ir.Constant(data_type, 0)
+        return ir.Constant(self.cg.int64, 0)
 
 
-class Variable(object):
-    def __init__(self, builder, module, state, name):
-        self.builder = builder
-        self.module = module
+class Variable(Node):
+    def __init__(self, cg, state, name):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.name = name
 
@@ -204,21 +226,23 @@ class Variable(object):
         return self.builder.load(var_address, self.name)
 
 
-class Number(object):
-    def __init__(self, builder, module, state, value):
-        self.builder = builder
-        self.module = module
+class Number(Node):
+    def __init__(self, cg, state, value):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.value = value
 
     def generate(self):
-        return ir.Constant(data_type, int(self.value))
+        return ir.Constant(self.cg.int64, int(self.value))
 
 
-class UnaryOp(object):
-    def __init__(self, builder, module, state, operator, value):
-        self.builder = builder
-        self.module = module
+class UnaryOp(Node):
+    def __init__(self, cg, state, operator, value):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.operator = operator
         self.value = value
@@ -227,18 +251,19 @@ class UnaryOp(object):
         op = self.operator
         if op == 'NOT':
             return self.builder.select(
-                self.builder.icmp_signed('==', self.value.generate(), ir.Constant(ir.IntType(32), 0)),
-                ir.Constant(ir.IntType(32), 1), ir.Constant(ir.IntType(32), 0))
+                self.builder.icmp_signed('==', self.value.generate(), ir.Constant(self.cg.int64, 0)),
+                ir.Constant(self.cg.int64, 1), ir.Constant(self.cg.int64, 0))
         elif op == 'SUB':
             return self.builder.neg(self.value.generate())
         elif op == 'COMPLEMENT':
             return self.builder.not_(self.value.generate())
 
 
-class BinaryOp(object):
-    def __init__(self, builder, module, state, operator, left, right):
-        self.builder = builder
-        self.module = module
+class BinaryOp(Node):
+    def __init__(self, cg, state, operator, left, right):
+        self.cg = cg
+        self.builder = cg.builder
+        self.module = cg.module
         self.state = state
         self.operator = operator
         self.left = left
@@ -268,29 +293,3 @@ class BinaryOp(object):
                 'LESS': '<', 'LESS_EQ': '<=', 'GREATER': '>', 'GREATER_EQ': '>=', 'EQUALS': '==', 'NOT_EQUALS': '!='
             }
             return self.builder.icmp_signed(standard_ops[op], self.left.generate(), self.right.generate())
-
-
-class Print(object):
-    def __init__(self, builder, module, state, printf, value):
-        self.builder = builder
-        self.module = module
-        self.state = state
-        self.printf = printf
-        self.value = value
-
-    def generate(self):
-        value = self.value.generate()
-
-        voidptr_ty = ir.IntType(8).as_pointer()
-        fmt = '%i \n\0'
-        c_fmt = ir.Constant(ir.ArrayType(ir.IntType(8), len(fmt)), bytearray(fmt.encode('utf-8')))
-
-        global_fmt = self.module.globals.get('f_str')
-        if not global_fmt:
-            global_fmt = ir.GlobalVariable(self.module, c_fmt.type, name='f_str')
-            global_fmt.linkage = 'internal'
-            global_fmt.global_constant = True
-            global_fmt.initializer = c_fmt
-        fmt_arg = self.builder.bitcast(global_fmt, voidptr_ty)
-
-        return self.builder.call(self.printf, [fmt_arg, value])

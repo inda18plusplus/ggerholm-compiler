@@ -11,11 +11,7 @@ def main():
     tokens = lexer.lex(text_input)
 
     cg = CodeGen()
-    module = cg.module
-    builder = cg.builder
-    printf = cg.printf
-
-    pg = Parser(module, builder, printf)
+    pg = Parser(cg)
     pg.parse()
     parser = pg.get_parser()
     parser.parse(tokens, state=ParserState()).generate()

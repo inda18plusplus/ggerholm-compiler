@@ -11,7 +11,15 @@ class CodeGen(object):
         self.llvm.initialize_native_asmprinter()
         self._config_llvm()
         self._create_execution_engine()
+
+        self._create_types()
+        self._declare_global_string('number_fmt', '%i\n\0')
         self._declare_print_function()
+
+    def _create_types(self):
+        self.int64 = ir.IntType(64)
+        self.int8 = ir.IntType(8)
+        self.voidptr = ir.IntType(8).as_pointer()
 
     def _config_llvm(self):
         self.module = ir.Module(name=__file__)
@@ -25,11 +33,17 @@ class CodeGen(object):
         engine = binding.create_mcjit_compiler(backing_mod, target_machine)
         self.engine = engine
 
+    def _declare_global_string(self, name, string):
+        var_ty = ir.ArrayType(self.int8, len(string))
+        var = ir.Constant(var_ty, bytearray(string.encode('utf-8')))
+        global_var = ir.GlobalVariable(self.module, var_ty, name)
+        global_var.linkage = 'internal'
+        global_var.global_constant = True
+        global_var.initializer = var
+
     def _declare_print_function(self):
-        voidptr_ty = ir.IntType(8).as_pointer()
-        printf_ty = ir.FunctionType(ir.IntType(32), [voidptr_ty], var_arg=True)
-        printf = ir.Function(self.module, printf_ty, name='printf')
-        self.printf = printf
+        printf_ty = ir.FunctionType(self.int64, [self.voidptr], var_arg=True)
+        ir.Function(self.module, printf_ty, name='printf')
 
     def _compile_ir(self):
         llvm_ir = str(self.module)

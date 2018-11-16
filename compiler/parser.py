@@ -9,7 +9,7 @@ class ParserState(object):
 
 
 class Parser(object):
-    def __init__(self, module, builder, printf):
+    def __init__(self, cg):
         self.pg = ParserGenerator([
             'NUMBER', 'PRINT', 'OPEN_PAREN', 'CLOSE_PAREN', 'SEMICOLON', 'SUM', 'SUB', 'MUL', 'DIV', 'NOT',
             'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER',
@@ -23,9 +23,7 @@ class Parser(object):
             ('right', ['NOT', 'COMPLEMENT'])
         ])
 
-        self.module = module
-        self.builder = builder
-        self.printf = printf
+        self.cg = cg
 
     def parse(self):
 
@@ -38,7 +36,7 @@ class Parser(object):
                 functions.append(p[1])
             else:
                 functions.append(p[0])
-            return Program(self.builder, self.module, state, functions)
+            return Program(self.cg, state, functions)
 
         @self.pg.production('body : statement')
         @self.pg.production('body : body statement')
@@ -53,14 +51,14 @@ class Parser(object):
                                RETURN statement
                                CLOSE_CURLY""")
         def func(state, p):
-            return Function(self.builder, self.module, state, p[0], p[2], p[4])
+            return Function(self.cg, state, p[0], p[2], p[4])
 
         @self.pg.production('func_proto : PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN CLOSE_PAREN')
         @self.pg.production('func_proto : PRIMITIVE_DATA_TYPE IDENTIFIER OPEN_PAREN arg_names CLOSE_PAREN')
         def func_prototype(state, p):
             if len(p) > 4:
-                return FunctionPrototype(self.builder, self.module, state, p[1].value, p[3])
-            return FunctionPrototype(self.builder, self.module, state, p[1].value, [])
+                return FunctionPrototype(self.cg, state, p[1].value, p[3])
+            return FunctionPrototype(self.cg, state, p[1].value, [])
 
         @self.pg.production('arg_names : IDENTIFIER')
         @self.pg.production('arg_names : arg_names COMMA IDENTIFIER')
@@ -80,12 +78,12 @@ class Parser(object):
         @self.pg.production('function_call : IDENTIFIER OPEN_PAREN arg_values CLOSE_PAREN')
         def func_call(state, p):
             if len(p) > 3:
-                return FunctionCall(self.builder, self.module, state, p[0].value, p[2])
-            return FunctionCall(self.builder, self.module, state, p[0].value, [])
+                return FunctionCall(self.cg, state, p[0].value, p[2])
+            return FunctionCall(self.cg, state, p[0].value, [])
 
         @self.pg.production('print : PRINT OPEN_PAREN expression CLOSE_PAREN')
         def print_stmt(state, p):
-            return Print(self.builder, self.module, state, self.printf, p[2])
+            return Print(self.cg, state, p[2])
 
         @self.pg.production("""if_stmt :
                                IF OPEN_PAREN bool_exp CLOSE_PAREN OPEN_CURLY
@@ -95,14 +93,14 @@ class Parser(object):
             condition = p[2]
             then_body = p[5]
             else_body = p[9]
-            return IfStatement(self.builder, self.module, state, condition, then_body, else_body)
+            return IfStatement(self.cg, state, condition, then_body, else_body)
 
         @self.pg.production("""for_loop :
                                FOR OPEN_PAREN IDENTIFIER EQUAL_SIGN expression SEMICOLON
                                bool_exp SEMICOLON expression CLOSE_PAREN OPEN_CURLY
                                body CLOSE_CURLY""")
         def for_loop(state, p):
-            return ForLoop(self.builder, self.module, state, p[2].value, p[4], p[6], p[8], p[11])
+            return ForLoop(self.cg, state, p[2].value, p[4], p[6], p[8], p[11])
 
         @self.pg.production('statement : expression SEMICOLON')
         @self.pg.production('statement : function_call SEMICOLON')
@@ -130,12 +128,12 @@ class Parser(object):
             left = p[0]
             right = p[2]
             operator = p[1].gettokentype()
-            return BinaryOp(self.builder, self.module, state, operator, left, right)
+            return BinaryOp(self.cg, state, operator, left, right)
 
         @self.pg.production('expression : IDENTIFIER EQUAL_SIGN expression')
         def var_assignment(state, p):
             var = variable(state, p)
-            return BinaryOp(self.builder, self.module, state, 'EQUAL_SIGN', var, p[2])
+            return BinaryOp(self.cg, state, 'EQUAL_SIGN', var, p[2])
 
         @self.pg.production('expression : SUB expression')
         @self.pg.production('expression : COMPLEMENT expression')
@@ -143,15 +141,15 @@ class Parser(object):
         def unary_op(state, p):
             operator = p[0].gettokentype()
             value = p[1]
-            return UnaryOp(self.builder, self.module, state, operator, value)
+            return UnaryOp(self.cg, state, operator, value)
 
         @self.pg.production('expression : NUMBER')
         def number(state, p):
-            return Number(self.builder, self.module, state, p[0].value)
+            return Number(self.cg, state, p[0].value)
 
         @self.pg.production('expression : IDENTIFIER')
         def variable(state, p):
-            return Variable(self.builder, self.module, state, p[0].value)
+            return Variable(self.cg, state, p[0].value)
 
         @self.pg.error
         def error_handle(state, token):
