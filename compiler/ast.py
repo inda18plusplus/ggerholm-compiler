@@ -109,9 +109,22 @@ class Print(FunctionCall):
         self.value = value
 
     def generate(self):
-        global_fmt = self.module.globals.get('number_fmt')
+        global_fmt = self.module.globals.get('println_number')
         fmt_arg = self.builder.bitcast(global_fmt, ir.IntType(8).as_pointer())
         self.args = [fmt_arg, self.value]
+        return super().generate()
+
+
+class Input(FunctionCall):
+    def __init__(self, cg, state, var):
+        super().__init__(cg, state, 'scanf', [])
+        self.var = var
+
+    # TODO: Add message before input.
+    def generate(self):
+        global_fmt = self.module.globals.get('input_number')
+        fmt_arg = self.builder.bitcast(global_fmt, ir.IntType(8).as_pointer())
+        self.args = [fmt_arg, self.state.func_symbols[self.var]]
         return super().generate()
 
 

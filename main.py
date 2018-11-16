@@ -4,7 +4,7 @@ from compiler.parser import Parser, ParserState
 
 
 def main():
-    with open('example.unnamedlang', 'r') as f:
+    with open('example.gg', 'r') as f:
         text_input = f.read()
 
     lexer = Lexer().get_lexer()

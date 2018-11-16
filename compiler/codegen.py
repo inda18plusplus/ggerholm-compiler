@@ -13,8 +13,10 @@ class CodeGen(object):
         self._create_execution_engine()
 
         self._create_types()
-        self._declare_global_string('number_fmt', '%i\n\0')
+        self._declare_global_string('println_number', '%lld\n\0')
+        self._declare_global_string('input_number', '%lld\x00')
         self._declare_print_function()
+        self._declare_input_function()
 
     def _create_types(self):
         self.int64 = ir.IntType(64)
@@ -44,6 +46,10 @@ class CodeGen(object):
     def _declare_print_function(self):
         printf_ty = ir.FunctionType(self.int64, [self.voidptr], var_arg=True)
         ir.Function(self.module, printf_ty, name='printf')
+
+    def _declare_input_function(self):
+        scanf_ty = ir.FunctionType(self.int64, [self.voidptr], var_arg=True)
+        ir.Function(self.module, scanf_ty, name='scanf')
 
     def _compile_ir(self):
         llvm_ir = str(self.module)

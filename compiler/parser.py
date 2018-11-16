@@ -1,7 +1,7 @@
 from rply import ParserGenerator
 
 from compiler.ast import Number, Print, Function, FunctionCall, \
-    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp, Variable, UnaryOp
+    FunctionPrototype, Program, IfStatement, ForLoop, BinaryOp, Variable, UnaryOp, Input
 
 
 class ParserState(object):
@@ -14,7 +14,7 @@ class Parser(object):
             'NUMBER', 'PRINT', 'OPEN_PAREN', 'CLOSE_PAREN', 'SEMICOLON', 'SUM', 'SUB', 'MUL', 'DIV', 'NOT',
             'COMPLEMENT', 'OPEN_CURLY', 'CLOSE_CURLY', 'PRIMITIVE_DATA_TYPE', 'RETURN', 'IDENTIFIER',
             'IF', 'ELSE', 'FOR', 'GREATER', 'LESS', 'GREATER_EQ', 'LESS_EQ', 'EQUALS', 'NOT_EQUALS',
-            'COMMA', 'EQUAL_SIGN'
+            'COMMA', 'EQUAL_SIGN', 'INPUT'
         ], precedence=[
             ('left', ['EQUALS', 'NOT_EQUALS', 'GREATER', 'GREATER_EQ', 'LESS', 'LESS_EQ']),
             ('right', ['EQUAL_SIGN']),
@@ -85,6 +85,10 @@ class Parser(object):
         def print_stmt(state, p):
             return Print(self.cg, state, p[2])
 
+        @self.pg.production('input : IDENTIFIER EQUAL_SIGN INPUT OPEN_PAREN CLOSE_PAREN')
+        def input_stmt(state, p):
+            return Input(self.cg, state, p[0].value)
+
         @self.pg.production("""if_stmt :
                                IF OPEN_PAREN bool_exp CLOSE_PAREN OPEN_CURLY
                                body CLOSE_CURLY ELSE OPEN_CURLY
@@ -105,6 +109,7 @@ class Parser(object):
         @self.pg.production('statement : expression SEMICOLON')
         @self.pg.production('statement : function_call SEMICOLON')
         @self.pg.production('statement : print SEMICOLON')
+        @self.pg.production('statement : input SEMICOLON')
         @self.pg.production('statement : if_stmt')
         @self.pg.production('statement : for_loop')
         def statement(state, p):

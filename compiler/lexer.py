@@ -7,6 +7,7 @@ class Lexer(object):
 
     def _add_tokens(self):
         self.lexer.add('PRINT', r'print')
+        self.lexer.add('INPUT', r'input')
         self.lexer.add('OPEN_PAREN', r'\(')
         self.lexer.add('CLOSE_PAREN', r'\)')
         self.lexer.add('SEMICOLON', r';')
